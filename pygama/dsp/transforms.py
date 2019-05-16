@@ -9,7 +9,7 @@ import warnings
 warnings.filterwarnings(action="ignore", module="scipy", message="^internal gelsd")
 warnings.filterwarnings(action="ignore", module="scipy.signal", category=FutureWarning)
 
-def blsub(waves, calcs, wfin="waveform", wfout="wf_blsub", test=False):
+def blsub(waves, calcs, blest="", wfin="waveform", wfout="wf_blsub", test=False):
     """
     return an ndarray of baseline-subtracted waveforms,
     using the results from the fit_bl calculator
@@ -17,12 +17,17 @@ def blsub(waves, calcs, wfin="waveform", wfout="wf_blsub", test=False):
     wfs = waves[wfin]
     nwfs, nsamp = wfs.shape[0], wfs.shape[1]
 
-    bl_0 = calcs["bl_p0"].values[:, np.newaxis]
+    if blest == "fcdaq":
+        bl_avg = waves[blest]
+        blsub_wfs = wfs - np.split(bl_avg,len(bl_avg))
 
-    slope_vals = calcs["bl_p1"].values[:, np.newaxis]
-    bl_1 = np.tile(np.arange(nsamp), (nwfs, 1)) * slope_vals
+    else:
+        bl_0 = calcs["bl_p0"].values[:, np.newaxis]
 
-    blsub_wfs = wfs - (bl_0 + bl_1)
+        slope_vals = calcs["bl_p1"].values[:, np.newaxis]
+        bl_1 = np.tile(np.arange(nsamp), (nwfs, 1)) * slope_vals
+
+        blsub_wfs = wfs - (bl_0 + bl_1)
 
     if test:
         iwf = 1

@@ -84,7 +84,6 @@ class Intercom:
         # trick to pass in settings to the Processors w/o an extra argument
         self.waves["settings"] = self.settings
 
-
     def add(self, fun_name, settings={}):
         """
         add a new processor to the list,
@@ -121,7 +120,10 @@ class Intercom:
         self.waves["waveform"] = data_df.iloc[:, wf_start:wf_stop].values
         self.calcs = data_df.iloc[:, 0: wf_start-1].copy()
 
-
+        if "blest" in self.waves["settings"]["blsub"]:
+            if self.waves["settings"]["blsub"]["blest"] == "fcdaq":
+                self.waves["fcdaq"] = data_df.bl.values
+    
     def process(self, data_df, verbose=False, wfnames_out=None):
         """
         Apply each processor to the Tier 1 input dataframe,
