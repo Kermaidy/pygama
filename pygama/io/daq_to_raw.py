@@ -368,6 +368,7 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
     """
     import fcutils
 
+    file_size = os.path.getsize(t0_file)
     fcio = fcutils.fcio(t0_file)
     decoder = FlashCam()
     decoder.get_file_config(fcio)
@@ -399,7 +400,7 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
 
     # end of loop, write to file once more
     # decoder.save_to_pytables(t1_file, verbose=True)
-    # decoder.save_to_lh5(t1_file, verbose=True)
+    decoder.save_to_lh5(t1_file)
 
     if verbose:
       update_progress(1)

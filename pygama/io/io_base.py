@@ -333,7 +333,7 @@ class DataTaker(ABC):
                 
                 # write first time
                 if not append:
-                    dset = hf.create_dataset(f"/daqdata/{col}", data=npa, maxshape=(None,))
+                    dset = hf.create_dataset(f"/daqdata/{col}", data=npa)#, maxshape=(None,))
                     # print("first one:", npa.shape[0], col)
                 
                     # set default attributes

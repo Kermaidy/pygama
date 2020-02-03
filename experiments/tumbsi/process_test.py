@@ -45,7 +45,7 @@ def main(argv):
     
     # -- start processing --
     if args["daq_to_raw"]:
-      daq_to_raw(ds, args["ovr"], args["nevt"], args["verbose"], args["test"])
+      d2r(ds, args["ovr"], args["nevt"], args["verbose"], args["test"])
     
     if args["raw_to_dsp"]:
       raw_to_dsp(ds, args["ovr"], args["nevt"], args["ioff"], args["nomp"], args["verbose"],
@@ -53,12 +53,12 @@ def main(argv):
 
 
 
-def daq_to_raw(ds,overwrite=False, nevt=np.inf, v=False, test=False):
+def d2r(ds,overwrite=False, nevt=np.inf, v=False, test=False):
     """
     Run ProcessRaw on a set of runs.
     [raw file] ---> [t1_run{}.h5] (tier 1 file: basic info & waveforms)
     """
-    from pygama.io.daq_to_raw import ProcessRaw
+    from pygama.io.daq_to_raw import daq_to_raw
     
     for run in ds.runs:
       print(ds.raw_dir)
@@ -78,14 +78,14 @@ def daq_to_raw(ds,overwrite=False, nevt=np.inf, v=False, test=False):
       if nevt != np.inf:
         nevt = int(nevt)
         
-      ProcessRaw(
+      daq_to_raw(
                    t0_file,
                    run,
                    verbose=v,
-                   output_dir=ds.tier_dir,
+                   output_dir=ds.tier1_dir,
                    overwrite=overwrite,
-                   n_max=nevt,
-                   settings=opts)
+                   n_max=nevt,                   
+                   config=ds.config)#settings=opts)
 
 def raw_to_dsp(ds,
           overwrite=False,
@@ -124,7 +124,7 @@ def raw_to_dsp(ds,
         RunDSP(
             t1_file,
             proc,
-            output_dir=ds.tier_dir,
+            output_dir=ds.tier2_dir,
             overwrite=overwrite,
             verbose=verbose,
             multiprocess=multiproc,

@@ -688,8 +688,11 @@ class FlashCam(DataTaker):
         self.decoded_values = {
           "ievt": [], # index of event
           "timestamp": [], # time since beginning of file
+          "numtraces": [], # number of triggered adc channels
+          "tracelist": [], # list of triggered adc channels
           "channel": [], # right now, index of the trigger (trace)
-          "baseline" : [], # averages prebaseline0 and prebaseline1
+          "baseline" : [], # fpga baseline
+          "energy" : [], # fpga energy
           "wf_max": [], # ultra-simple np.max energy estimation
           "wf_std": [], # ultra-simple np.std noise estimation
           "waveform": [] # digitizer data
@@ -716,6 +719,7 @@ class FlashCam(DataTaker):
         self.lh5_spec = {
             "timestamp":{"units":"sec"},
             "baseline":{"units":"adc"},
+            "energy":{"units":"adc"},
             "wf_max":{"units":"adc"},
             "wf_std":{"units":"adc"},
         }
@@ -735,22 +739,23 @@ class FlashCam(DataTaker):
         access FCIOEvent members for each event in the raw file
         """
         ievt = fcio.eventnumber # the eventnumber since the beginning of the file
-        timestamp = fcio.eventtime  # the time since the beginning of the file in seconds
-        traces = fcio.traces # the full traces for the event: (nadcs, nsamples)
-        baselines = fcio.baselines # the fpga baseline values for each channel in LSB
-        # baselines = fcio.average_prebaselines # equivalent?
+        timestamp = fcio.eventtime # the time since the beginning of the file in seconds
+        numtraces = fcio.numtraces # number of triggered adcs
+        tracelist = fcio.tracelist # list of triggered adcs
+        traces    = fcio.traces # the full traces for the event: (nadcs, nsamples)
+        baselines = fcio.baseline # the fpga baseline values for each channel in LSB
+        energies  = fcio.daqenergy # the fpga energy values for each channel in LSB
         
-        # these are empty in my test file
-        integrals = fcio.integrals # the fpga integrator values for each channel in LSB
-        triggertraces = fcio.triggertraces # the triggersum traces: (ntriggers, nsamples)
-        
+        if verbose: print(ievt,timestamp,numtraces,len(tracelist),len(baselines),len(energies))
+
         # all channels are read out simultaneously for each event
         for iwf in range(self.file_config["nadcs"]):
-            channel = iwf
+            channel  = iwf
             waveform = traces[iwf]
             baseline = baselines[iwf]
-            wf_max = np.amax(waveform)
-            wf_std = np.std(waveform)
+            energy   = energies[iwf]
+            wf_max   = np.amax(waveform)
+            wf_std   = np.std(waveform)
             self.total_count += 1
             
             # i don't know what indicates a garbage event yet
