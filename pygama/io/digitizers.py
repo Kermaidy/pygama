@@ -684,12 +684,18 @@ class FlashCam(DataTaker):
         """
         self.decoder_name = "FlashCam"
         
-        # these are read for every event (decode_event)
-        self.decoded_values = {
+        self.event_global = {
           "ievt": [], # index of event
           "timestamp": [], # time since beginning of file
-          "numtraces": [], # number of triggered adc channels
-          "tracelist": [], # list of triggered adc channels
+          "numtraces": [] # number of triggered adc channels
+        }
+
+        self.event_triggers = {
+          "tracelist": [] # list of triggered adc channels
+        }
+
+        # these are read for every event (decode_event)
+        self.decoded_values = {
           "channel": [], # right now, index of the trigger (trace)
           "baseline" : [], # fpga baseline
           "energy" : [], # fpga energy
@@ -740,16 +746,17 @@ class FlashCam(DataTaker):
         """
         ievt = fcio.eventnumber # the eventnumber since the beginning of the file
         timestamp = fcio.eventtime # the time since the beginning of the file in seconds
+        eventsamples=fcio.nsamples # number of sample per trace
         numtraces = fcio.numtraces # number of triggered adcs
         tracelist = fcio.tracelist # list of triggered adcs
         traces    = fcio.traces # the full traces for the event: (nadcs, nsamples)
         baselines = fcio.baseline # the fpga baseline values for each channel in LSB
         energies  = fcio.daqenergy # the fpga energy values for each channel in LSB
-        
-        if verbose: print(ievt,timestamp,numtraces,len(tracelist),len(baselines),len(energies))
+
+        self.format_data(locals(),"global")  
 
         # all channels are read out simultaneously for each event
-        for iwf in range(self.file_config["nadcs"]):
+        for iwf in tracelist:
             channel  = iwf
             waveform = traces[iwf]
             baseline = baselines[iwf]
@@ -765,6 +772,6 @@ class FlashCam(DataTaker):
             #     return
             
             # send any variable with a name in "decoded_values" to the output
-            self.format_data(locals())  
+            self.format_data(locals(),"local")  
 
 
