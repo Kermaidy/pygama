@@ -309,7 +309,11 @@ class DataTaker(ABC):
         for col in self.event_triggers:
             # write first time
             if not append:
-                dt = h5py.special_dtype(vlen=np.dtype('int16'))
+                # hack to find out whether the tracelist is homogeneous (-dm 0) or variable size (-dm 11) 
+                if len(np.array(self.event_triggers[col]).shape) == 1:
+                    dt = h5py.special_dtype(vlen=np.dtype('int16'))
+                else:
+                    dt = np.dtype('int16')
                 dset = hf.create_dataset(f"/daqdata/{col}", dtype=dt, data=self.event_triggers[col])
                 
                 # set default attributes
