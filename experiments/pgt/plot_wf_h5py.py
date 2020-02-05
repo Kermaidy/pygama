@@ -7,30 +7,17 @@ import time
 print("")
 max_evt = 5 # max number of events to show
 print_status = 0
-plot_status = 1
-plot_wf = 0
+plot_status = 0
+plot_wf = 1
 
-f = h5py.File('./tier1/t1_run117.lh5','r')
+f = h5py.File('./tier1/t1_run118.lh5','r')
 dset = f['daqdata']
 conf = f['header']
 
 print("Header info: ",conf.keys())
 print("Data info: ",dset.keys())
 
-nadcs     = conf['nadcs'][0]
-nsamp     = conf['nsamples'][0]
-
-# event-wise data
-ievt      = dset['ievt'][()]
-timestamp = dset['timestamp'][()]
-channel   = dset['channel'][()]
-numtraces = dset['numtraces'][()]
-tracelist = dset['tracelist'][()]
-baseline  = dset['baseline'][()]
-energy    = dset['energy'][()]
-waveform  = dset['waveform']['values']['flattened_data'][()].reshape(baseline.shape[0],nsamp)
-
-# DAQ status information (1 Hz)
+# DAQ status information (1 Hz) loaded into memory (small amount of data)
 s_status     = dset['s_status'][()]
 s_statustime = dset['s_statustime'][()]
 s_cputime    = dset['s_cputime'][()]
@@ -43,17 +30,11 @@ s_enverrors  = dset['s_enverrors'][()]
 s_linkerrors = dset['s_linkerrors'][()]
 s_othererrors= dset['s_othererrors'][()]
 
-print("")
-print("Data structure:")
-print("  status: ",s_cards.shape,s_environment.shape)
-print("  vectors: ",baseline.shape)
-print("  waveform:",waveform.shape)
-print("")
-
-ntrg = 0
-old_evt = ievt[0]
-
 if(print_status):
+    print("")
+    print("Data structure:")
+    print("  status: ",s_cards.shape,s_environment.shape)
+    print("")
     print("Print status information")
     for log in range(0,len(s_status)):
         print("Status:",s_status[log],s_statustime[log],s_cputime[log], end=' sec ')
@@ -75,6 +56,10 @@ if(print_status):
     sys.exit()
 
 if(plot_status):
+    print("")
+    print("Data structure:")
+    print("  status: ",s_cards.shape,s_environment.shape)
+    print("")
     print("Plot status information")
     date = []
     for cputime in s_cputime:
@@ -114,21 +99,30 @@ if(plot_status):
     sys.exit()
 
 if(plot_wf):
-    print("Plot event waveforms")
-    for evt,t,adc,bl,en in zip(ievt,timestamp,channel,baseline,energy):
+    nadcs   = conf['nadcs'][0]
+    nsamp   = conf['nsamples'][0]
+    old_evt = dset['ievt'][0]
+    nwf     = 0
+
+    print("Plot event built waveforms")
+    for evt,t,adc,bl,en in zip(dset['ievt'],dset['timestamp'],dset['channel'],dset['baseline'],dset['energy']):
         if evt > max_evt: break
+        # Only plot when we reach next event
         if evt != old_evt: 
-            print("")
+            print("")            
             plt.xlabel("Time [16 ns]")
             plt.ylabel("Baseline subt. amplitude [LSB]")
             plt.legend(title=("Bkg run117 - event %d" % old_evt))
             plt.show()
             old_evt = evt
 
-            print("  ntrg %d evt %d time %f adc %d bl %d energy %d" % (ntrg,evt,t,adc,bl,en))
-            plt.plot(np.array(waveform[ntrg],dtype=np.int32)-baseline[ntrg], label="ch %d - bl = %d" %(adc,baseline[ntrg]))
-            ntrg = ntrg+1
+        print("  nwf %d evt %d time %f adc %d bl %d energy %d" % (nwf,evt,t,adc,bl,en))
+        # build the waveform from flat data
+        waveform = dset['waveform']['values']['flattened_data'][nwf*nsamp:(nwf+1)*nsamp]
+        plt.plot(np.array(waveform,dtype=np.int32)-bl, label="ch %d - bl = %d" %(adc,bl))
+        nwf = nwf+1
 
     sys.exit()
+
 
 
