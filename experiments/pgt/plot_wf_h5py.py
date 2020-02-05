@@ -3,14 +3,28 @@ import numpy as np
 import h5py
 import sys
 import time
+import argparse
 
 print("")
-max_evt = 5 # max number of events to show
-print_status = 0
-plot_status = 0
-plot_wf = 1
+nevts    = 5 # max number of events to show
+fevt     = 0 # first evt to show
+mode     = 1 # display mode
+filename = './tier1/t1_run117.lh5' # input filename
 
-f = h5py.File('./tier1/t1_run118.lh5','r')
+par = argparse.ArgumentParser(description="lh5 FlashCam data parser")
+arg, st, sf = par.add_argument, "store_true", "store_false"
+arg("-f", "--file" , nargs=1, help="tier1 filename")
+arg("-m", "--mode" , nargs=1, help="[1=print status-2=plot status-3=plot waveform")
+arg("-n", "--nevts", nargs=1, help="number of events to show")
+arg("-e", "--fevt" , nargs=1, help="first event to show")
+args = vars(par.parse_args())
+
+if args['file']:  filename = args['file'][0]
+if args['mode']:  mode     = int(args['mode'][0])
+if args['nevts']: nevts    = int(args['nevts'][0])
+if args['fevt']:  fevt     = int(args['fevt'][0])
+
+f = h5py.File(filename,'r')
 dset = f['daqdata']
 conf = f['header']
 
@@ -30,7 +44,7 @@ s_enverrors  = dset['s_enverrors'][()]
 s_linkerrors = dset['s_linkerrors'][()]
 s_othererrors= dset['s_othererrors'][()]
 
-if(print_status):
+if mode == 1:
     print("")
     print("Data structure:")
     print("  status: ",s_cards.shape,s_environment.shape)
@@ -55,7 +69,7 @@ if(print_status):
 
     sys.exit()
 
-if(plot_status):
+if mode == 2:
     print("")
     print("Data structure:")
     print("  status: ",s_cards.shape,s_environment.shape)
@@ -98,15 +112,18 @@ if(plot_status):
 
     sys.exit()
 
-if(plot_wf):
+if mode == 3:
     nadcs   = conf['nadcs'][0]
     nsamp   = conf['nsamples'][0]
-    old_evt = dset['ievt'][0]
+    old_evt = fevt
     nwf     = 0
 
     print("Plot event built waveforms")
-    for evt,t,adc,bl,en in zip(dset['ievt'],dset['timestamp'],dset['channel'],dset['baseline'],dset['energy']):
-        if evt > max_evt: break
+    for evt,t,adc,bl,en,nt in zip(dset['ievt'],dset['timestamp'],dset['channel'],dset['baseline'],dset['energy'],dset['numtraces']):
+        if evt < fevt: 
+            nwf = nwf+1
+            continue
+        if evt > fevt + nevts: break
         # Only plot when we reach next event
         if evt != old_evt: 
             print("")            
