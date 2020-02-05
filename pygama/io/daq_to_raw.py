@@ -373,8 +373,8 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
     decoder = FlashCam()
     decoder.get_file_config(fcio)
 
-    # ROW_LIMIT = 5e4
-    ROW_LIMIT = 1000
+    ROW_LIMIT = 5e4
+    #ROW_LIMIT = 1000
 
     # loop over raw data packets
     i_debug = 0
@@ -395,10 +395,10 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
 
           decoder.save_to_lh5(t1_file)
 
-          i_debug += 1
-          if i_debug == 1:
-              print("breaking early")
-              break # debug, deleteme
+          #i_debug += 1
+          #if i_debug == 1:
+          #    print("breaking early")
+          #    break # debug, deleteme
 
       if rc == 4: # Status record
           decoder.decode_status(fcio, packet_id)

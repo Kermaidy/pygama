@@ -729,6 +729,8 @@ class FlashCam(DataTaker):
         # default structure is array<1>{real}, default unit is None.
         # here we only specify columns if they are non-default.
         self.lh5_spec = {
+            "s_statustime":{"units":"sec"},
+            "s_cputime":{"units":"sec"},
             "timestamp":{"units":"sec"},
             "baseline":{"units":"adc"},
             "energy":{"units":"adc"},

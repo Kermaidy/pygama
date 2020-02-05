@@ -340,16 +340,27 @@ class DataTaker(ABC):
                 
                 # write first time
                 if not append:
-                    if(col == "tracelist"):
-                        # hack to find out whether the tracelist is homogeneous (-dm 0) or variable size (-dm 11) 
+                    #print("first one:", npa.shape, type(npa[0]), col)
+                    # hack to find out whether the tracelist is homogeneous (-dm 0) or variable size (-dm 11) 
+                    if "tracelist" in col:
                         if len(npa.shape) == 1:
                             dt = h5py.special_dtype(vlen=np.dtype('int16'))
+                            ms = (None,)
                         else:
                             dt = np.dtype('int16')
-                        dset = hf.create_dataset(f"/daqdata/{col}", dtype=dt, data=npa)
+                            ms = (None,None)
+                        dset = hf.create_dataset(f"/daqdata/{col}", dtype=dt, data=npa, maxshape=ms)
+                        continue
+                    # special shape for status records
+                    elif "s_environment" in col:
+                        ms = (None,13,16)
+                    elif  "s_othererrors" in col:
+                        ms = (None,13,5)
+                    elif "errors" in col:
+                        ms = (None,13)
                     else:
-                        dset = hf.create_dataset(f"/daqdata/{col}", data=npa)#, maxshape=(None,))
-                    # print("first one:", npa.shape[0], col)
+                        ms = (None,)
+                    dset = hf.create_dataset(f"/daqdata/{col}", data=npa, maxshape=ms)
                 
                     # set default attributes
                     dset.attrs["units"] = "none"
@@ -362,6 +373,7 @@ class DataTaker(ABC):
                 
                 # append
                 else:
+                    if npa.shape[0] == 0: continue # status entries might be empty
                     dset = hf[f"/daqdata/{col}"]
                     dset.resize(dset.shape[0] + npa.shape[0], axis=0)
                     dset[-npa.shape[0]:] = npa
