@@ -684,26 +684,32 @@ class FlashCam(DataTaker):
         """
         self.decoder_name = "FlashCam"
         
-        self.event_global = {
-          "ievt": [], # index of event
-          "timestamp": [], # time since beginning of file
-          "numtraces": [] # number of triggered adc channels
-        }
-
-        self.event_triggers = {
-          "tracelist": [] # list of triggered adc channels
-        }
-
         # these are read for every event (decode_event)
         self.decoded_values = {
-          "channel": [], # right now, index of the trigger (trace)
+          "ievt"     : [], # index of event
+          "timestamp": [], # time since beginning of file
+          "numtraces": [], # number of triggered adc channels
+          "tracelist": [], # list of triggered adc channels
           "baseline" : [], # fpga baseline
-          "energy" : [], # fpga energy
-          "wf_max": [], # ultra-simple np.max energy estimation
-          "wf_std": [], # ultra-simple np.std noise estimation
-          "waveform": [] # digitizer data
-        }
-        
+          "energy"   : [],  # fpga energy
+          "channel"  : [], # right now, index of the trigger (trace)
+          "wf_max"   : [], # ultra-simple np.max energy estimation
+          "wf_std"   : [], # ultra-simple np.std noise estimation
+          "waveform" : [], # digitizer data
+
+          "s_status"     : [], # 0: Errors occured, 1: no errors
+          "s_statustime" : [], # fc250 seconds, microseconds, dummy, startsec startusec 
+          "s_cputime"    : [], # CPU seconds, microseconds, dummy, startsec startusec 
+          "s_cards"      : [], # Total number of cards (number of status data to follow)
+          "s_size"       : [], # Size of each status data
+          "s_environment": [], # FC card-wise [0-4] Temps in mDeg, [5-10] Voltages in mV, 11 main current in mA, 12 humidity in o/oo, [13-14] Temps from adc cards in mDeg
+          "s_totalerrors": [], # FC card-wise list DAQ errors during data taking
+          "s_enverrors"  : [], 
+          "s_ctierrors"  : [], 
+          "s_linkerrors" : [],
+          "s_othererrors": []
+           }
+
         # these are read for every file (get_file_config)
         self.config_names = [
             "nsamples", # samples per channel
@@ -718,7 +724,7 @@ class FlashCam(DataTaker):
             "adccards", # number of attached fadccards
             "gps", # gps mode (0: not used, 1: external pps and 10MHz)
             ]
-        
+    
         # put add'l info useful for LH5 specification
         # default structure is array<1>{real}, default unit is None.
         # here we only specify columns if they are non-default.
@@ -739,28 +745,45 @@ class FlashCam(DataTaker):
         """
         self.file_config = {c:getattr(fcio, c) for c in self.config_names}
 
-          
+
+    def decode_status(self, fcio, packet_id, verbose=False):
+        """
+        access FC status (temp., log, ...)
+        """
+        s_status     =fcio.status      # 0: Errors occured, 1: no errors
+        s_statustime =fcio.statustime[0]+fcio.statustime[1]/1e6
+        s_cputime    =fcio.statustime[2]+fcio.statustime[3]/1e6
+        s_cards      =fcio.cards       # Total number of cards (number of status data to follow)
+        s_size       =fcio.size        # Size of each status data
+        s_environment=fcio.environment # FC card-wise environment status (temp., volt., hum., ...)
+        s_totalerrors=fcio.totalerrors # FC card-wise list DAQ errors during data taking
+        s_linkerrors =fcio.linkerrors
+        s_ctierrors  =fcio.ctierrors
+        s_enverrors  =fcio.enverrors
+        s_othererrors=fcio.othererrors
+
+        # send any variable with a name in "decoded_values" to the output
+        self.format_data(locals())  
+
     def decode_event(self, fcio, packet_id, verbose=False):
         """
         access FCIOEvent members for each event in the raw file
         """
-        ievt = fcio.eventnumber # the eventnumber since the beginning of the file
-        timestamp = fcio.eventtime # the time since the beginning of the file in seconds
-        eventsamples=fcio.nsamples # number of sample per trace
-        numtraces = fcio.numtraces # number of triggered adcs
-        tracelist = fcio.tracelist # list of triggered adcs
-        traces    = fcio.traces # the full traces for the event: (nadcs, nsamples)
-        baselines = fcio.baseline # the fpga baseline values for each channel in LSB
-        energies  = fcio.daqenergy # the fpga energy values for each channel in LSB
-
-        self.format_data(locals(),"global")  
+        ievt      = fcio.eventnumber # the eventnumber since the beginning of the file
+        timestamp = fcio.eventtime   # the time since the beginning of the file in seconds
+        eventsamples=fcio.nsamples   # number of sample per trace
+        numtraces = fcio.numtraces   # number of triggered adcs
+        tracelist = fcio.tracelist   # list of triggered adcs
+        traces    = fcio.traces      # the full traces for the event: (nadcs, nsamples)
+        baselines = fcio.baseline    # the fpga baseline values for each channel in LSB
+        energies  = fcio.daqenergy   # the fpga energy values for each channel in LSB
 
         # all channels are read out simultaneously for each event
         for iwf in tracelist:
             channel  = iwf
-            waveform = traces[iwf]
             baseline = baselines[iwf]
             energy   = energies[iwf]
+            waveform = traces[iwf]
             wf_max   = np.amax(waveform)
             wf_std   = np.std(waveform)
             self.total_count += 1
@@ -772,6 +795,6 @@ class FlashCam(DataTaker):
             #     return
             
             # send any variable with a name in "decoded_values" to the output
-            self.format_data(locals(),"local")  
+            self.format_data(locals())  
 
 

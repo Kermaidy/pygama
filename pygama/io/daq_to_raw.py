@@ -379,7 +379,11 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
     # loop over raw data packets
     i_debug = 0
     packet_id = 0
-    while fcio.next_event() and packet_id < n_max:
+    rc=1
+    while rc and packet_id < n_max:
+      rc = fcio.get_record()
+      if rc == 0 or rc == 1 or rc == 2 or rc == 5: continue # Non interesting records
+
       packet_id += 1
       if verbose and packet_id % 1000 == 0:
           update_progress(float(fcio.telid) / file_size)
@@ -396,7 +400,11 @@ def process_flashcam(t0_file, t1_file, run, n_max, decoders, config, verbose):
               print("breaking early")
               break # debug, deleteme
 
-      decoder.decode_event(fcio, packet_id)
+      if rc == 4: # Status record
+          decoder.decode_status(fcio, packet_id)
+
+      if rc == 3 or rc == 6: # Event or SparseEvent record
+          decoder.decode_event(fcio, packet_id)
 
     # end of loop, write to file once more
     # decoder.save_to_pytables(t1_file, verbose=True)

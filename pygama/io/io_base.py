@@ -36,8 +36,6 @@ class DataTaker(ABC):
         self.total_count = 0
         self.garbage_count = 0 # never leave any data behind
         self.garbage_values = {key:[] for key in self.decoded_values}
-        self.garbage_values.update({key:[] for key in self.event_global})
-        self.garbage_values.update({key:[] for key in self.event_triggers})
 
         if user_config is not None:
             with open(user_config) as f:
@@ -48,7 +46,7 @@ class DataTaker(ABC):
         # self.config = config
 
 
-    def format_data(self, vals, flag="local", is_garbage=False):
+    def format_data(self, vals, is_garbage=False):
         """
         for every event in the raw DAQ data, we send any local variable with a 
         name in "self.decoded_values" to the output with the line:
@@ -59,7 +57,7 @@ class DataTaker(ABC):
             self.garbage_count += 1
 
         for key in vals:
-            if key is not "self" and flag == "local" and key in self.decoded_values:
+            if key is not "self" and key in self.decoded_values:
                 if is_garbage:
                     self.garbage_values[key].append(vals[key])
                 else:
@@ -68,31 +66,11 @@ class DataTaker(ABC):
                     else:
                         self.decoded_values[key].append(vals[key])
 
-            elif key is not "self" and flag == "global" and key in self.event_triggers:
-                if is_garbage:
-                    self.garbage_values[key].append(vals[key])
-                else:
-                    if type(vals[key]) == np.ndarray:
-                        self.event_triggers[key].append(vals[key].copy())
-                    else:
-                        self.event_triggers[key].append(vals[key])
-            
-            elif key is not "self" and flag == "global" and key in self.event_global:
-                if is_garbage:
-                    self.garbage_values[key].append(vals[key])
-                else:
-                    if type(vals[key]) == np.ndarray:
-                        self.event_global[key].append(vals[key].copy())
-                    else:
-                        self.event_global[key].append(vals[key])
-            
     def clear_data(self):
         """ clear out standard objects when we do a write to file """
         self.total_count = 0
         self.garbage_count = 0
         self.decoded_values = {key:[] for key in self.decoded_values}
-        self.event_global   = {key:[] for key in self.event_global}
-        self.event_triggers = {key:[] for key in self.event_triggers}
         self.garbage_values = {key:[] for key in self.garbage_values}
 
 
@@ -257,7 +235,6 @@ class DataTaker(ABC):
         hf = h5py.File(file_name, file_mode)
         
         if not append:
-            
             # create the header, saving everything in attributes (like a dict)
             hd_group = f"/header"
             hf.create_group(hd_group)
@@ -280,61 +257,9 @@ class DataTaker(ABC):
             table_def = "table{" + ",".join(cols) + "}"
             hf["/daqdata"].attrs["datatype"] = table_def
 
-
-        # create datasets for each member of self.event_global - one entry per event
-        for col in self.event_global:
-            npa = np.asarray(self.event_global[col]) 
-            # write first time
-            if not append:
-                dset = hf.create_dataset(f"/daqdata/{col}", data=self.event_global[col])
-               
-                # set default attributes
-                dset.attrs["units"] = "none"
-                dset.attrs["datatype"] = "float<1>{real}"
-                
-                # overwrite attributes if they exist
-                if col in self.lh5_spec:
-                    if "units" in self.lh5_spec[col]: 
-                        dset.attrs["units"] = self.lh5_spec[col]["units"]
-                
-            # append
-            else:
-                print("append", (1,), col,self.event_global[col])
-                dset = hf[f"/daqdata/{col}"]
-                print("debug: ",col,dset.shape[0])
-                dset.resize(dset.shape[0] + 1, axis=0)
-                dset[-1:] = self.event_global[col]
-
-        # create datasets for each member of self.event_triggers - one array per event with variable length
-        for col in self.event_triggers:
-            # write first time
-            if not append:
-                # hack to find out whether the tracelist is homogeneous (-dm 0) or variable size (-dm 11) 
-                if len(np.array(self.event_triggers[col]).shape) == 1:
-                    dt = h5py.special_dtype(vlen=np.dtype('int16'))
-                else:
-                    dt = np.dtype('int16')
-                dset = hf.create_dataset(f"/daqdata/{col}", dtype=dt, data=self.event_triggers[col])
-                
-                # set default attributes
-                dset.attrs["units"] = "none"
-                dset.attrs["datatype"] = "array<1>{real}"
-                
-                # overwrite attributes if they exist
-                if col in self.lh5_spec:
-                    if "units" in self.lh5_spec[col]: 
-                        dset.attrs["units"] = self.lh5_spec[col]["units"]
-                
-            # append
-            else:
-                dset = hf[f"/daqdata/{col}"]
-                print("debug: ",col,dset.shape[0])
-                dset.resize(dset.shape[0] + 1, axis=0)
-                dset[-1:] = self.event_triggers[col]
-
         # create datasets for each member of self.decoded_values
         for col in self.decoded_values:
-            
+
             # create waveform datasets
             if "waveform" in col:
 
@@ -415,7 +340,15 @@ class DataTaker(ABC):
                 
                 # write first time
                 if not append:
-                    dset = hf.create_dataset(f"/daqdata/{col}", data=npa)#, maxshape=(None,))
+                    if(col == "tracelist"):
+                        # hack to find out whether the tracelist is homogeneous (-dm 0) or variable size (-dm 11) 
+                        if len(npa.shape) == 1:
+                            dt = h5py.special_dtype(vlen=np.dtype('int16'))
+                        else:
+                            dt = np.dtype('int16')
+                        dset = hf.create_dataset(f"/daqdata/{col}", dtype=dt, data=npa)
+                    else:
+                        dset = hf.create_dataset(f"/daqdata/{col}", data=npa)#, maxshape=(None,))
                     # print("first one:", npa.shape[0], col)
                 
                     # set default attributes
